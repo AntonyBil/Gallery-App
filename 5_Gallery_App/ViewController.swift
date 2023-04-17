@@ -9,7 +9,7 @@ import UIKit
 
 class ViewController: UIViewController {
     
-    let gallery = [#imageLiteral(resourceName: "alejandro.jpg"),#imageLiteral(resourceName: "demi.jpg"), #imageLiteral(resourceName: "francesco.jpg"), #imageLiteral(resourceName: "frida.jpg"), #imageLiteral(resourceName: "gary.jpg"), #imageLiteral(resourceName: "gwen.jpg"), #imageLiteral(resourceName: "kar.jpg"), #imageLiteral(resourceName: "marc.jpg"), #imageLiteral(resourceName: "kevin.jpg"), #imageLiteral(resourceName: "ricky.jpg")]
+    var gallery = [#imageLiteral(resourceName: "alejandro.jpg"),#imageLiteral(resourceName: "demi.jpg"), #imageLiteral(resourceName: "francesco.jpg"), #imageLiteral(resourceName: "frida.jpg"), #imageLiteral(resourceName: "gary.jpg"), #imageLiteral(resourceName: "gwen.jpg"), #imageLiteral(resourceName: "kar.jpg"), #imageLiteral(resourceName: "marc.jpg"), #imageLiteral(resourceName: "kevin.jpg"), #imageLiteral(resourceName: "ricky.jpg")]
 
     @IBOutlet weak var trashImageView: UIImageView!
     
@@ -40,9 +40,28 @@ class ViewController: UIViewController {
             let swipe = UISwipeGestureRecognizer(target: self, action: #selector(handleSwipe))
             swipe.direction = .up
             newPicture.addGestureRecognizer(swipe)
+            
+            //pan gesture
+            let pan = UIPanGestureRecognizer(target: self, action: #selector(handlePan))
+            pan.delegate = self
+            newPicture.addGestureRecognizer(pan)
         } else {
             nextIndex = 0
             showNextPicture()
+        }
+    }
+    
+    @objc func handlePan(_ sender: UIPanGestureRecognizer) {
+        guard let view = currentPicture, isActive else { return }
+        
+        switch sender.state {
+        case .began, .changed:
+            processPictureMovement(sender: sender, view: view)
+        case .ended:
+            if view.frame.intersects(trashImageView.frame){
+                deletePicture(imageView: view)
+            }
+        default: break
         }
     }
     
@@ -60,6 +79,30 @@ class ViewController: UIViewController {
         } else {
             deactivateCurrentPicture()
         }
+    }
+    
+    func processPictureMovement(sender: UIPanGestureRecognizer, view: UIImageView) {
+        let translation = sender.translation(in: view)
+        view.center = CGPoint(x: view.center.x + translation.x, y: view.center.y + translation.y)
+        sender.setTranslation(.zero, in: view)
+        
+        if view.frame.intersects(trashImageView.frame) {
+            view.layer.borderColor = UIColor.red.cgColor
+        } else {
+            view.layer.borderColor = UIColor.green.cgColor
+        }
+    }
+    
+    func deletePicture(imageView: UIImageView) {
+        self.gallery.remove(at: nextIndex - 1)
+        isActive = false
+        
+        UIView.animate(withDuration: 0.4) {
+            imageView.alpha = 0
+        } completion: { (_) in
+            imageView.removeFromSuperview()
+        }
+        showNextPicture()
     }
     
     //Tap Ivent
@@ -116,6 +159,12 @@ class ViewController: UIViewController {
         } completion: { (_) in
             imageView.removeFromSuperview()
         }
+    }
+}
+
+extension ViewController: UIGestureRecognizerDelegate {
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+        return true
     }
 }
 
